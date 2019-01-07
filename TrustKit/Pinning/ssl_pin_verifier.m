@@ -10,20 +10,22 @@
  */
 
 #import "ssl_pin_verifier.h"
+#import "TSKSPKIHashCache.h"
 #import "../Dependencies/domain_registry/domain_registry.h"
-#import "public_key_utils.h"
-#import "../TrustKit+Private.h"
 #import "../configuration_utils.h"
+#import "../TSKLog.h"
 
 
 #pragma mark SSL Pin Verifier
 
-TSKPinValidationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *serverHostname, NSArray<NSNumber *> *supportedAlgorithms, NSSet<NSData *> *knownPins)
+TSKTrustEvaluationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *serverHostname, NSSet<NSData *> *knownPins, TSKSPKIHashCache *hashCache)
 {
-    if ((serverTrust == NULL) || (supportedAlgorithms == nil) || (knownPins == nil))
+    NSCParameterAssert(serverTrust);
+    NSCParameterAssert(knownPins);
+    if ((serverTrust == NULL) || (knownPins == nil))
     {
         TSKLog(@"Invalid pinning parameters for %@", serverHostname);
-        return TSKPinValidationResultErrorInvalidParameters;
+        return TSKTrustEvaluationErrorInvalidParameters;
     }
 
     // First re-check the certificate chain using the default SSL validation in case it was disabled
@@ -42,7 +44,7 @@ TSKPinValidationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *ser
     {
         TSKLog(@"SecTrustEvaluate error for %@", serverHostname);
         CFRelease(serverTrust);
-        return TSKPinValidationResultErrorInvalidParameters;
+        return TSKTrustEvaluationErrorInvalidParameters;
     }
     
     if ((trustResult != kSecTrustResultUnspecified) && (trustResult != kSecTrustResultProceed))
@@ -52,7 +54,7 @@ TSKPinValidationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *ser
         TSKLog(@"Error: default SSL validation failed for %@: %@", serverHostname, evaluationDetails);
         CFRelease(evaluationDetails);
         CFRelease(serverTrust);
-        return TSKPinValidationResultFailedCertificateChainNotTrusted;
+        return TSKTrustEvaluationFailedInvalidCertificateChain;
     }
     
     // Check each certificate in the server's certificate chain (the trust object); start with the CA all the way down to the leaf
@@ -65,26 +67,22 @@ TSKPinValidationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *ser
         TSKLog(@"Checking certificate with CN: %@", certificateSubject);
         CFRelease(certificateSubject);
         
-        // For each public key algorithm flagged as supported in the config, generate the subject public key info hash
-        for (NSNumber *savedAlgorithm in supportedAlgorithms)
+        // Generate the subject public key info hash
+        NSData *subjectPublicKeyInfoHash = [hashCache hashSubjectPublicKeyInfoFromCertificate:certificate];
+        if (subjectPublicKeyInfoHash == nil)
         {
-            TSKPublicKeyAlgorithm algorithm = [savedAlgorithm integerValue];
-            NSData *subjectPublicKeyInfoHash = hashSubjectPublicKeyInfoFromCertificate(certificate, algorithm);
-            if (subjectPublicKeyInfoHash == nil)
-            {
-                TSKLog(@"Error - could not generate the SPKI hash for %@", serverHostname);
-                CFRelease(serverTrust);
-                return TSKPinValidationResultErrorCouldNotGenerateSpkiHash;
-            }
-            
-            // Is the generated hash in our set of pinned hashes ?
-            TSKLog(@"Testing SSL Pin %@", subjectPublicKeyInfoHash);
-            if ([knownPins containsObject:subjectPublicKeyInfoHash])
-            {
-                TSKLog(@"SSL Pin found for %@", serverHostname);
-                CFRelease(serverTrust);
-                return TSKPinValidationResultSuccess;
-            }
+            TSKLog(@"Error - could not generate the SPKI hash for %@", serverHostname);
+            CFRelease(serverTrust);
+            return TSKTrustEvaluationErrorCouldNotGenerateSpkiHash;
+        }
+        
+        // Is the generated hash in our set of pinned hashes ?
+        TSKLog(@"Testing SSL Pin %@", subjectPublicKeyInfoHash);
+        if ([knownPins containsObject:subjectPublicKeyInfoHash])
+        {
+            TSKLog(@"SSL Pin found for %@", serverHostname);
+            CFRelease(serverTrust);
+            return TSKTrustEvaluationSuccess;
         }
     }
     
@@ -122,7 +120,7 @@ TSKPinValidationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *ser
             {
                 TSKLog(@"Detected user-defined trust anchor in the certificate chain");
                 CFRelease(serverTrust);
-                return TSKPinValidationResultFailedUserDefinedTrustAnchor;
+                return TSKTrustEvaluationFailedUserDefinedTrustAnchor;
             }
         }
     }
@@ -131,5 +129,5 @@ TSKPinValidationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *ser
     // If we get here, we didn't find any matching SPKI hash in the chain
     TSKLog(@"Error: SSL Pin not found for %@", serverHostname);
     CFRelease(serverTrust);
-    return TSKPinValidationResultFailed;
+    return TSKTrustEvaluationFailedNoMatchingPin;
 }

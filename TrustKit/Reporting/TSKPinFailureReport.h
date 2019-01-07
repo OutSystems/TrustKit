@@ -9,9 +9,13 @@
  
  */
 
-#import <Foundation/Foundation.h>
 #import "../Pinning/ssl_pin_verifier.h"
 
+#if __has_feature(modules)
+@import Foundation;
+#else
+#import <Foundation/Foundation.h>
+#endif
 
 @interface TSKPinFailureReport : NSObject
 
@@ -28,7 +32,7 @@
 @property (readonly, nonatomic) BOOL includeSubdomains;
 @property (readonly, nonatomic, nonnull) NSArray *validatedCertificateChain;
 @property (readonly, nonatomic, nonnull) NSArray *knownPins;
-@property (readonly, nonatomic) TSKPinValidationResult validationResult; // Not part of the HPKP spec
+@property (readonly, nonatomic) TSKTrustEvaluationResult validationResult; // Not part of the HPKP spec
 @property (readonly, nonatomic) BOOL enforcePinning; // Not part of the HPKP spec
 @property (readonly, nonatomic, nullable) NSDate *knownPinsExpirationDate; // Not part of the HPKP spec
 
@@ -48,7 +52,7 @@
                               enforcePinning:(BOOL)enforcePinning
                    validatedCertificateChain:(nonnull NSArray<NSString *> *)validatedCertificateChain
                                    knownPins:(nonnull NSArray<NSString *> *)knownPins
-                            validationResult:(TSKPinValidationResult)validationResult
+                            validationResult:(TSKTrustEvaluationResult)validationResult
                               expirationDate:(nullable NSDate *)knownPinsExpirationDate;
 
 // Return the report in JSON format for POSTing it

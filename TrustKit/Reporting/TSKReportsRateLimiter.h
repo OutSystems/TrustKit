@@ -10,7 +10,12 @@
  */
 
 #import "TSKPinFailureReport.h"
+
+#if __has_feature(modules)
+@import Foundation;
+#else
 #import <Foundation/Foundation.h>
+#endif
 
 
 /*
@@ -21,13 +26,13 @@
  */
 @interface TSKReportsRateLimiter : NSObject
 
-+ (BOOL) shouldRateLimitReport:(TSKPinFailureReport *)report;
+/**
+ Determine if the report should be reported or ignored due to the rate limiting policy.
 
-@end
+ @param report The report to check whether or not to rate limit
+ @return True if the report should be ignored under the rate-limiting policy that
+    is in effect.
+ */
+- (BOOL)shouldRateLimitReport:(TSKPinFailureReport * _Nonnull)report;
 
-
-
-@interface TSKReportsRateLimiter(Private)
-// Helper method for running tests
-+ (void) setLastReportsCacheResetDate:(NSDate *)date;
 @end

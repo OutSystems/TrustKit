@@ -9,11 +9,17 @@
  
  */
 
+#if __has_feature(modules)
+@import Foundation;
+#else
 #import <Foundation/Foundation.h>
+#endif
 
 @interface TSKCertificateUtils : NSObject
 
-+ (SecCertificateRef)createCertificateFromDer:(NSString *)derCertiticatePath;
++ (SecCertificateRef)createCertificateFromPem:(NSString *)pemFilename;
+
++ (SecCertificateRef)createCertificateFromDer:(NSString *)derFilename;
 
 + (SecTrustRef)createTrustWithCertificates:(const void **)certArray
                                arrayLength:(NSInteger)certArrayLength
