@@ -14,6 +14,7 @@
 #import "../Dependencies/domain_registry/domain_registry.h"
 #import "../configuration_utils.h"
 #import "../TSKLog.h"
+#import "pinning_utils.h"
 
 
 #pragma mark SSL Pin Verifier
@@ -39,10 +40,13 @@ TSKTrustEvaluationResult verifyPublicKeyPin(SecTrustRef serverTrust, NSString *s
     SecTrustSetPolicies(serverTrust, SslPolicy);
     CFRelease(SslPolicy);
     
+    NSError *error = NULL;
     SecTrustResultType trustResult = 0;
-    if (SecTrustEvaluate(serverTrust, &trustResult) != errSecSuccess)
+    
+    evaluateCertificateChainTrust(serverTrust, &trustResult, &error);
+    if ((error != NULL) && (trustResult == kSecTrustResultInvalid))
     {
-        TSKLog(@"SecTrustEvaluate error for %@", serverHostname);
+        TSKLog(@"SecTrustEvaluate error for %@: %@", serverHostname, [error localizedDescription]);
         CFRelease(serverTrust);
         return TSKTrustEvaluationErrorInvalidParameters;
     }

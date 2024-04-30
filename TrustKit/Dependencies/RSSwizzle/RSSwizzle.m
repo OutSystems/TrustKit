@@ -262,7 +262,7 @@ static void swizzle(Class classToSwizzle,
 }
 
 
-static NSMutableDictionary *swizzledClassesDictionary(){
+static NSMutableDictionary *swizzledClassesDictionary(void){
     static NSMutableDictionary *swizzledClasses;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
