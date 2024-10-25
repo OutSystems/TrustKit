@@ -7,10 +7,10 @@
 //
 
 #import <XCTest/XCTest.h>
-#import "../TrustKit/TrustKit.h"
-#import "../TrustKit/TSKPinningValidator.h"
+#import "../TrustKit/public/TrustKit.h"
+#import "../TrustKit/public/TSKPinningValidator.h"
 #import "../TrustKit/configuration_utils.h"
-#import "../TrustKit/TSKPinningValidatorResult.h"
+#import "../TrustKit/public/TSKPinningValidatorResult.h"
 
 
 #pragma mark Test NSURLSession delegate
@@ -167,8 +167,9 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
     
     XCTestExpectation *expectation = [self expectationWithDescription:@"TestNSURLSessionTaskDelegate"];
     TestNSURLSessionDelegate* delegate = [[TestNSURLSessionDelegate alloc] initWithValidator:trustKit.pinningValidator expectation:expectation];
-    
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
+
+
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:ephemeralNSURLSessionConfiguration()
                                                           delegate:delegate
                                                      delegateQueue:nil];
     
@@ -196,7 +197,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
           @{
               @"www.datatheorem.com" : @{
                       kTSKEnforcePinning : @YES,
-                      kTSKPublicKeyHashes : @[@"58qRu/uxh4gFezqAcERupSkRYBlBAvfcw7mEjGPLnNU=", // CA key
+                      kTSKPublicKeyHashes : @[@"cXjPgKdVe6iojP8s0YQJ3rtmDFHTnYZxcYvmYGFiYME=", // CA key for Google Trust Services (cert valid until 27 Jan 2028)
                                               @"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" // Fake key
                                               ]}}};
     
@@ -222,7 +223,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
     XCTestExpectation *expectation = [self expectationWithDescription:@"TestNSURLSessionTaskDelegate"];
     TestNSURLSessionDelegate* delegate = [[TestNSURLSessionDelegate alloc] initWithValidator:trustKit.pinningValidator expectation:expectation];
     
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:ephemeralNSURLSessionConfiguration()
                                                           delegate:delegate
                                                      delegateQueue:nil];
     
@@ -279,7 +280,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
     XCTestExpectation *expectation = [self expectationWithDescription:@"TestNSURLSessionTaskDelegate"];
     TestNSURLSessionDelegate* delegate = [[TestNSURLSessionDelegate alloc] initWithValidator:trustKit.pinningValidator expectation:expectation];
     
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:ephemeralNSURLSessionConfiguration()
                                                           delegate:delegate
                                                      delegateQueue:nil];
     
@@ -324,7 +325,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
     XCTestExpectation *expectation = [self expectationWithDescription:@"TestNSURLSessionTaskDelegate"];
     TestNSURLSessionDelegate* delegate = [[TestNSURLSessionDelegate alloc] initWithValidator:trustKit.pinningValidator expectation:expectation];
     
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:ephemeralNSURLSessionConfiguration()
                                                           delegate:delegate
                                                      delegateQueue:nil];
     

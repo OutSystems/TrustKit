@@ -10,7 +10,7 @@
  */
 
 #import <XCTest/XCTest.h>
-#import "../TrustKit/TSKTrustKitConfig.h"
+#import "../TrustKit/public/TSKTrustKitConfig.h"
 #import "../TrustKit/parse_configuration.h"
 
 #import "../TrustKit/Pinning/ssl_pin_verifier.h"
@@ -70,7 +70,7 @@
     NSData *spkiHash = [spkiCache hashSubjectPublicKeyInfoFromCertificate:certificate];
     NSString *spkiPin = [spkiHash base64EncodedStringWithOptions:NSDataBase64Encoding64CharacterLineLength];
     
-    XCTAssertEqualObjects(spkiPin, @"TQEtdMbmwFgYUifM4LDF+xgEtd0z69mPGmkp014d6ZY=");
+    XCTAssertEqualObjects(spkiPin, @"TwyNzy19zZi7cKfPsucs1E+h8ODOCPMrT8681sFWJvw=");
     CFRelease(certificate);
 }
 
