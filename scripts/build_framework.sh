@@ -1,6 +1,6 @@
 SCRIPTS_FOLDER="scripts/build"
 BUILD_SCHEME="TrustKit"
-FRAMEWORK_NAME="OSTrustKit"
+FRAMEWORK_NAME="TrustKit"
 SIMULATOR_ARCHIVE_PATH="${SCRIPTS_FOLDER}/iphonesimulator.xcarchive"
 IOS_DEVICE_ARCHIVE_PATH="${SCRIPTS_FOLDER}/iphoneos.xcarchive"
 

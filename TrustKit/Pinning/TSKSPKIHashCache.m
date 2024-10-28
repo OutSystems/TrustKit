@@ -44,6 +44,27 @@ static const unsigned char ecDsaSecp384r1Asn1Header[] =
 };
 
 
+static BOOL isKeySupported(NSString *publicKeyType, NSNumber *publicKeySize)
+{
+    if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 2048))
+    {
+        return YES;
+    }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 4096))
+    {
+        return YES;
+    }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeECSECPrimeRandom]) && ([publicKeySize integerValue] == 256))
+    {
+        return YES;
+    }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeECSECPrimeRandom]) && ([publicKeySize integerValue] == 384))
+    {
+        return YES;
+    }
+    return NO;
+}
+
 
 static char *getAsn1HeaderBytes(NSString *publicKeyType, NSNumber *publicKeySize)
 {
@@ -152,6 +173,11 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     
     // First extract the public key
     SecKeyRef publicKey = [self copyPublicKeyFromCertificate:certificate];
+    if (publicKey == nil)
+    {
+        TSKLog(@"Error - could not copy the public key from the certificate");
+        return nil;
+    }
     
     // Obtain the public key bytes from the key reference
     NSData *publicKeyData = (__bridge_transfer NSData *)SecKeyCopyExternalRepresentation(publicKey, NULL);
@@ -167,6 +193,13 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     NSString *publicKeyType = CFDictionaryGetValue(publicKeyAttributes, kSecAttrKeyType);
     NSNumber *publicKeysize = CFDictionaryGetValue(publicKeyAttributes, kSecAttrKeySizeInBits);
     CFRelease(publicKeyAttributes);
+    
+    if (!isKeySupported(publicKeyType, publicKeysize))
+    {
+        TSKLog(@"Error - public key algorithm or length is not supported");
+        CFRelease(publicKey);
+        return nil;
+    }
     
     char *asn1HeaderBytes = getAsn1HeaderBytes(publicKeyType, publicKeysize);
     unsigned int asn1HeaderSize = getAsn1HeaderSize(publicKeyType, publicKeysize);
@@ -253,7 +286,7 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
         return nil;
     }
     
-    SecKeyRef publicKey = SecTrustCopyKey(trust);
+    SecKeyRef publicKey = copyKey(trust);
     CFRelease(trust);
     return publicKey;
 }

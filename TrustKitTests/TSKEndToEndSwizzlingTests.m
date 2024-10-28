@@ -7,7 +7,8 @@
 //
 
 #import <XCTest/XCTest.h>
-#import "../TrustKit/TrustKit.h"
+#import "../TrustKit/public/TrustKit.h"
+#import "../TrustKit/configuration_utils.h"
 
 
 
@@ -76,7 +77,7 @@ didCompleteWithError:(NSError * _Nullable)error
     {
         _completedConnectionToFacebook = YES;
     }
-    else if ([task.originalRequest.URL.host isEqualToString:@"www.cloudflare.com"])
+    else if ([task.originalRequest.URL.host isEqualToString:@"www.datatheorem.com"])
     {
         _completedConnectionToCloudflare = YES;
     }
@@ -96,7 +97,7 @@ didReceiveResponse:(NSURLResponse * _Nonnull)response
     {
         _completedConnectionToFacebook = YES;
     }
-    else if ([dataTask.originalRequest.URL.host isEqualToString:@"www.cloudflare.com"])
+    else if ([dataTask.originalRequest.URL.host isEqualToString:@"www.datatheorem.com"])
     {
         _completedConnectionToCloudflare = YES;
     }
@@ -115,7 +116,7 @@ didReceiveResponse:(NSURLResponse * _Nonnull)response
     {
         _completedConnectionToFacebook = YES;
     }
-    else if ([task.originalRequest.URL.host isEqualToString:@"www.cloudflare.com"])
+    else if ([task.originalRequest.URL.host isEqualToString:@"www.datatheorem.com"])
     {
         _completedConnectionToCloudflare = YES;
     }
@@ -164,9 +165,9 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
       kTSKPinnedDomains :
           @{
               // Valid pinning configuration
-              @"www.cloudflare.com" : @{
+              @"www.datatheorem.com" : @{
                       kTSKEnforcePinning : @YES,
-                      kTSKPublicKeyHashes : @[@"WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18=", // CA key
+                      kTSKPublicKeyHashes : @[@"F6jTih9VkkYZS8yuYqeU/4DUGehJ+niBGkkQ1yg8H3U=", // CA key
                                               @"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" // Fake key
                                               ]},
               // Invalid pinning configuration
@@ -196,13 +197,13 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
             XCTAssertEqualObjects(notedHostname, @"www.facebook.com");
             XCTAssertNotNil(notedHostnamePinningPolicy);
         }
-        else if ([result.serverHostname isEqualToString:@"www.cloudflare.com"])
+        else if ([result.serverHostname isEqualToString:@"www.datatheorem.com"])
         {
             receivedCallForCloudflare = YES;
             XCTAssertEqual(result.finalTrustDecision, TSKTrustDecisionShouldAllowConnection);
             XCTAssertEqual(result.evaluationResult, TSKTrustEvaluationSuccess);
             
-            XCTAssertEqualObjects(result.serverHostname,  @"www.cloudflare.com");
+            XCTAssertEqualObjects(result.serverHostname,  @"www.datatheorem.com");
             XCTAssertGreaterThan([result.certificateChain count], (unsigned long)1);
             XCTAssertGreaterThan(result.validationDuration, 0);
             
@@ -219,7 +220,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
     TestNSURLSessionDelegateSwizzling* delegate = [[TestNSURLSessionDelegateSwizzling alloc] initWithValidator:TrustKit.sharedInstance.pinningValidator
                                                                                                    expectation:expectation];
     
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:ephemeralNSURLSessionConfiguration()
                                                           delegate:delegate
                                                      delegateQueue:nil];
     
@@ -229,7 +230,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge * _Nonnull)challenge
     [task resume];
     
     // One should succeed
-    NSURLSessionDataTask *task2 = [session dataTaskWithURL:[NSURL URLWithString:@"https://www.cloudflare.com/"]];
+    NSURLSessionDataTask *task2 = [session dataTaskWithURL:[NSURL URLWithString:@"https://www.datatheorem.com/"]];
     [task2 resume];
     
     // Wait for the connection to succeed and ensure a notification was posted

@@ -7,5 +7,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Chores
+- Update 3rd party code to the latest upstream version `3.0.4` (https://outsystemsrd.atlassian.net/browse/RMET-3403).
 - Add a script to generate a `xcframework` (https://outsystemsrd.atlassian.net/browse/RMET-3322).
 - Update `podspec` to use an OutSystems version of the library (https://outsystemsrd.atlassian.net/browse/RMET-3322).
