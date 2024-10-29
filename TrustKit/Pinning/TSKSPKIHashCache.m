@@ -12,7 +12,7 @@
 #import "TSKSPKIHashCache.h"
 #import "../TSKLog.h"
 #import <CommonCrypto/CommonDigest.h>
-
+#import "pinning_utils.h"
 
 #pragma mark Missing ASN1 SPKI Headers
 
@@ -43,6 +43,27 @@ static const unsigned char ecDsaSecp384r1Asn1Header[] =
     0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00
 };
 
+
+static BOOL isKeySupported(NSString *publicKeyType, NSNumber *publicKeySize)
+{
+    if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 2048))
+    {
+        return YES;
+    }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 4096))
+    {
+        return YES;
+    }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeECSECPrimeRandom]) && ([publicKeySize integerValue] == 256))
+    {
+        return YES;
+    }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeECSECPrimeRandom]) && ([publicKeySize integerValue] == 384))
+    {
+        return YES;
+    }
+    return NO;
+}
 
 
 static char *getAsn1HeaderBytes(NSString *publicKeyType, NSNumber *publicKeySize)
@@ -152,6 +173,11 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     
     // First extract the public key
     SecKeyRef publicKey = [self copyPublicKeyFromCertificate:certificate];
+    if (publicKey == nil)
+    {
+        TSKLog(@"Error - could not copy the public key from the certificate");
+        return nil;
+    }
     
     // Obtain the public key bytes from the key reference
     NSData *publicKeyData = (__bridge_transfer NSData *)SecKeyCopyExternalRepresentation(publicKey, NULL);
@@ -167,6 +193,13 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     NSString *publicKeyType = CFDictionaryGetValue(publicKeyAttributes, kSecAttrKeyType);
     NSNumber *publicKeysize = CFDictionaryGetValue(publicKeyAttributes, kSecAttrKeySizeInBits);
     CFRelease(publicKeyAttributes);
+    
+    if (!isKeySupported(publicKeyType, publicKeysize))
+    {
+        TSKLog(@"Error - public key algorithm or length is not supported");
+        CFRelease(publicKey);
+        return nil;
+    }
     
     char *asn1HeaderBytes = getAsn1HeaderBytes(publicKeyType, publicKeysize);
     unsigned int asn1HeaderSize = getAsn1HeaderSize(publicKeyType, publicKeysize);
@@ -194,7 +227,7 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     
     // Update the cache on the filesystem
     if (self.spkiCacheFilename.length > 0) {
-        NSData *serializedSpkiCache = [NSKeyedArchiver archivedDataWithRootObject:_spkiCache];
+        NSData *serializedSpkiCache = [NSKeyedArchiver archivedDataWithRootObject:_spkiCache requiringSecureCoding:YES error:nil];
         if ([serializedSpkiCache writeToURL:[self SPKICachePath] atomically:YES] == NO)
         {
             NSAssert(false, @"Failed to write cache");
@@ -210,7 +243,12 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     NSMutableDictionary *spkiCache = nil;
     NSData *serializedSpkiCache = [NSData dataWithContentsOfURL:[self SPKICachePath]];
     if (serializedSpkiCache) {
-        spkiCache = [NSKeyedUnarchiver unarchiveObjectWithData:serializedSpkiCache];
+        NSError *decodingError = nil;
+        spkiCache = [NSKeyedUnarchiver unarchivedObjectOfClasses:[NSSet setWithArray:@[[SPKICacheDictionnary class], [NSData class]]] fromData:serializedSpkiCache error:&decodingError];
+        if (decodingError)
+        {
+            TSKLog(@"Could not retrieve SPKI cache from the filesystem: %@", decodingError);
+        }
     }
     return spkiCache;
 }
@@ -220,16 +258,35 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
 
 - (SecKeyRef)copyPublicKeyFromCertificate:(SecCertificateRef)certificate
 {
+    OSStatus status;
+    
     // Create an X509 trust using the using the certificate
     SecTrustRef trust;
     SecPolicyRef policy = SecPolicyCreateBasicX509();
-    SecTrustCreateWithCertificates(certificate, policy, &trust);
+    status = SecTrustCreateWithCertificates(certificate, policy, &trust);
+    CFRelease(policy);
+    
+    if (status != errSecSuccess)
+    {
+        TSKLog(@"Could not create trust from certificate, got status %d", status);
+        return nil;
+    }
     
     // Get a public key reference for the certificate from the trust
-    SecTrustResultType result;
-    SecTrustEvaluate(trust, &result);
-    SecKeyRef publicKey = SecTrustCopyPublicKey(trust);
-    CFRelease(policy);
+    // The certificate chain must be evaluated first in order to be able
+    // to determine which is the leaf certificate of the chain, and only
+    // then SecTrustCopyKey can be called
+    NSError *error = NULL;
+    SecTrustResultType trustResult = 0;
+    evaluateCertificateChainTrust(trust, &trustResult, &error);
+    if ((error != NULL) && (trustResult != kSecTrustResultRecoverableTrustFailure))
+    {
+        TSKLog(@"Could not evaluate trust for the certificate: %@", [error localizedDescription]);
+        CFRelease(trust);
+        return nil;
+    }
+    
+    SecKeyRef publicKey = copyKey(trust);
     CFRelease(trust);
     return publicKey;
 }
