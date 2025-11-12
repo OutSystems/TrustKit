@@ -1,14 +1,3 @@
-/*
-
- pinning_utils.m
- TrustKit
-
- Copyright 2023 The TrustKit Project Authors
- Licensed under the MIT license, see associated LICENSE file for terms.
- See AUTHORS file for the list of project authors.
-
- */
-
 #import "pinning_utils.h"
 #include <dlfcn.h>
 #include "TargetConditionals.h"

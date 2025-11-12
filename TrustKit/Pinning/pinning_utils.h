@@ -1,14 +1,3 @@
-/*
-
- pinning_utils.h
- TrustKit
-
- Copyright 2023 The TrustKit Project Authors
- Licensed under the MIT license, see associated LICENSE file for terms.
- See AUTHORS file for the list of project authors.
-
- */
-
 #if __has_feature(modules)
 @import Foundation;
 #else
@@ -20,7 +9,6 @@
 #else
 #import <Security/Security.h>
 #endif
-
 
 #ifndef TrustKit_pinning_utils_h
 #define TrustKit_pinning_utils_h
