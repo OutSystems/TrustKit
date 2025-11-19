@@ -8,7 +8,8 @@
  See AUTHORS file for the list of project authors.
  
  */
-
+#import <objc/runtime.h>
+#import <objc/message.h>
 #import "TSKSPKIHashCache.h"
 #import "../TSKLog.h"
 #import <CommonCrypto/CommonDigest.h>
@@ -22,6 +23,12 @@ static const unsigned char rsa2048Asn1Header[] =
 {
     0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
     0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00
+};
+
+static const unsigned char rsa3072Asn1Header[] =
+{
+    0x30, 0x82, 0x01, 0xA2, 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+    0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x8F, 0x00
 };
 
 static const unsigned char rsa4096Asn1Header[] =
@@ -50,6 +57,10 @@ static BOOL isKeySupported(NSString *publicKeyType, NSNumber *publicKeySize)
     {
         return YES;
     }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 3072))
+    {
+        return YES;
+    }
     else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 4096))
     {
         return YES;
@@ -72,6 +83,10 @@ static char *getAsn1HeaderBytes(NSString *publicKeyType, NSNumber *publicKeySize
     {
         return (char *)rsa2048Asn1Header;
     }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 3072))
+    {
+        return (char *)rsa3072Asn1Header;
+    }
     else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 4096))
     {
         return (char *)rsa4096Asn1Header;
@@ -93,6 +108,10 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 2048))
     {
         return sizeof(rsa2048Asn1Header);
+    }
+    else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 3072))
+    {
+        return sizeof(rsa3072Asn1Header);
     }
     else if (([publicKeyType isEqualToString:(NSString *)kSecAttrKeyTypeRSA]) && ([publicKeySize integerValue] == 4096))
     {
@@ -128,6 +147,21 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
 
 
 @implementation TSKSPKIHashCache
+
+static BOOL isProtectedDataAvailable(void)
+{
+    Class uiApplicationClass = objc_getClass("UIApplication");
+    if (uiApplicationClass) {
+        SEL sharedApplicationSelector = sel_registerName("sharedApplication");
+        SEL isProtectedDataAvailableSelector = sel_registerName("isProtectedDataAvailable");
+        id sharedApp = ((id (*)(id, SEL))objc_msgSend)(uiApplicationClass, sharedApplicationSelector);
+        if (sharedApp && [sharedApp respondsToSelector:isProtectedDataAvailableSelector]) {
+            return (((BOOL (*)(id, SEL))objc_msgSend)(sharedApp, isProtectedDataAvailableSelector));
+        }
+    }
+    
+    return YES;
+}
 
 - (instancetype)initWithIdentifier:(NSString *)uniqueIdentifier
 {
@@ -227,11 +261,27 @@ static unsigned int getAsn1HeaderSize(NSString *publicKeyType, NSNumber *publicK
     
     // Update the cache on the filesystem
     if (self.spkiCacheFilename.length > 0) {
-        NSData *serializedSpkiCache = [NSKeyedArchiver archivedDataWithRootObject:_spkiCache requiringSecureCoding:YES error:nil];
-        if ([serializedSpkiCache writeToURL:[self SPKICachePath] atomically:YES] == NO)
-        {
-            NSAssert(false, @"Failed to write cache");
-            TSKLog(@"Could not persist SPKI cache to the filesystem");
+        
+        __weak typeof(self) weakSelf = self;
+        void (^updateCacheBlock)(void) = ^{
+            
+            if (isProtectedDataAvailable()) {
+                NSData *serializedSpkiCache = [NSKeyedArchiver archivedDataWithRootObject:weakSelf.spkiCache requiringSecureCoding:YES error:nil];
+                if ([serializedSpkiCache writeToURL:[weakSelf SPKICachePath] atomically:YES] == NO) {
+                    NSAssert(false, @"Failed to write cache");
+                    TSKLog(@"Could not persist SPKI cache to the filesystem");
+                }
+            }
+            else {
+                TSKLog(@"Protected data not available, skipping SPKI cache persistence");
+            }
+        };
+        
+        if ([NSThread isMainThread]) {
+            updateCacheBlock();
+        }
+        else {
+            dispatch_async(dispatch_get_main_queue(), updateCacheBlock);
         }
     }
     

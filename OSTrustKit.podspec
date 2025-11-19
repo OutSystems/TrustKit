@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name                  = 'OSTrustKit'
-  s.version               = '3.0.4+1.0.0'
+  s.version               = '3.0.7+1.0.0'
 
   s.summary               = 'OSTrustKit is an open source framework that makes it easy to deploy SSL pinning in any iOS.'
 
